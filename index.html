@@ -1,0 +1,303 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ponto HRD</title>
+    <style>
+        body {
+            text-align: center;
+        }
+
+        input {
+            width: 150px;
+        }
+
+        body.light-mode {
+            background-color: white;
+            color: black;
+        }
+
+        body.dark-mode {
+            background-color: black;
+            color: white;
+        }
+
+            body.dark-mode label, body.dark-mode select {
+                color: white;
+            }
+
+            body.dark-mode button {
+                background-color: #333;
+                color: white;
+            }
+
+            body.dark-mode select {
+                background-color: #333;
+                color: white;
+            }
+    </style>
+</head>
+<body class="light-mode">
+
+    <button id="darkModeButton" class="dark-mode-toggle" onclick="toggleDarkMode()">Modo Escuro</button>
+    <b>
+        <a href="https://tairritadotio.github.io/index.html">Inicio</a>
+        <a href="https://tairritadotio.github.io/farmacia/">Farmacia</a>
+    </b>
+    <h1>Ponto HRD</h1>
+
+    <h2>Adicionar Pessoa</h2>
+    <label for="nome"><font color="purple"><b>Nome:</b></font></label>
+    <input type="text" id="nome">
+    <br>
+    <label for="id"><font color="purple"><b>ID:</b></font></label>
+    <input type="text" id="id">
+    <br>
+    <label for="diasTrabalhados"><font color="purple"><b>Dias Trabalhados:</b></font></label>
+    <input type="number" id="diasTrabalhados" min="0" value="0">
+    <br>
+    <h3>Horário de Ponto</h3>
+    <label for="dataEntrada"><font color="maroon"><b>Data de Entrada:</b></font></label>
+    <input type="date" id="dataEntrada">
+    <br>
+    <label for="horaInicio"><font color="maroon"><b>Hora de Início (HH:MM):</b></font></label>
+    <input type="text" id="horaInicio" placeholder="00:00" value="00:00">
+    <br>
+    <label for="dataSaida"><font color="maroon"><b>Data de Saída:</b></font></label>
+    <input type="date" id="dataSaida">
+    <br>
+    <label for="horaFechamento"><font color="maroon"><b>Hora de Fechamento (HH:MM):</b></font></label>
+    <input type="text" id="horaFechamento" placeholder="00:00" value="00:00">
+    <br>
+    <button onclick="calcularTempoPonto()">Calcular Horário de Ponto</button>
+
+    <h3>Soma de Tempo Feito</h3>
+    <div id="temposFeitos">
+        <div>
+            <label for="tempoFeito" class="tempoFeitoLabel"><font color="maroon"><b>Tempo Feito (HH:MM):</b></font></label>
+            <input type="text" class="tempoFeito" placeholder="00:00" value="00:00" onchange="atualizarMetaSemanal()">
+            <button onclick="removerTempoFeito(this)">Remover</button>
+        </div>
+    </div>
+    <br>
+    <button onclick="adicionarTempoFeito()">Adicionar Tempo Feito</button>
+    <button onclick="calcularTempoFeito()">Calcular Tempo Feito</button>
+
+    <h3>Justificou Ausência:</h3>
+    <select id="justificouAusencia" onchange="mostrarMotivo()">
+        <option value="Escolha a opção">Escolha a opção</option>
+        <option value="Sim">Sim</option>
+        <option value="Não">Não</option>
+    </select>
+
+    <div id="motivoAusencia" style="display: none;">
+        <label for="motivo"><b>Motivo da Ausência:</b></label>
+        <input type="text" id="motivo" placeholder="Digite o motivo da ausência">
+    </div>
+
+    <br>
+    <button onclick="salvarDados()">Salvar</button>
+    <button onclick="location.reload();">Atualizar Página</button>
+
+    <h2>Resultado</h2>
+    <div id="resultadoPonto">
+        <p><b>Resultado do Horário de Ponto: </b><span id="resultadoHoraPonto"></span></p>
+        <p><b>Data e Hora: </b><span id="dataHoraPonto"></span></p>
+    </div>
+    <div id="resultado">
+        <p><b>Nome:</b> <span id="nomeResultado"></span></p>
+        <p><b>ID:</b> <span id="idResultado"></span></p>
+        <p><b>Soma de Tempo Feito:</b> <span id="tempoFeitoResultado"></span></p>
+        <p><b>Dia Digitado: </b><span id="diasTrabalhadosResultado"></span></p>
+        <p><b>Meta 7 horas Semanal Atingida:</b> <span id="metaSemanal"></span></p>
+        <p><b>Justificou Ausência: </b><span id="justificouAusenciaResultado"></span></p>
+        <p><b>Motivo da Ausência: </b><span id="motivoAusenciaResultado"></span></p>
+        <p><b>Tempo Restante para Meta Semanal (7 horas):</b> <span id="tempoRestanteMetaDiaria"></span></p>
+        <p><b>Meta de 3 Dias na Semana Atingida:</b> <span id="metaSemanalDias"></span></p>
+    </div>
+
+    <script>
+        let tempoFeitoSemanalEmMinutos = 0;
+        let metaSemanalAtingida = false;
+        let metaSemanalDiasAtingida = false;
+
+        function calcularTempoPonto() {
+            const nome = document.getElementById("nome").value;
+            const id = document.getElementById("id").value;
+
+            const dataEntrada = document.getElementById("dataEntrada").value;
+            const horaInicio = document.getElementById("horaInicio").value;
+
+            const dataSaida = document.getElementById("dataSaida").value;
+            const horaFechamento = document.getElementById("horaFechamento").value;
+
+            const inicio = new Date(`${dataEntrada}T${horaInicio}`);
+            const fechamento = new Date(`${dataSaida}T${horaFechamento}`);
+
+            const diferencaEmMinutos = (fechamento - inicio) / (1000 * 60);
+            const horas = Math.floor(diferencaEmMinutos / 60);
+            const minutos = diferencaEmMinutos % 60;
+
+            const dataHora = new Date();
+
+            document.getElementById("resultadoHoraPonto").textContent = `${horas} horas e ${minutos} minutos`;
+            document.getElementById("dataHoraPonto").textContent = dataHora.toLocaleString();
+            document.getElementById("nomeResultado").textContent = nome;
+            document.getElementById("idResultado").textContent = id;
+
+            atualizarMetaSemanal();
+        }
+
+        function adicionarTempoFeito() {
+            const temposFeitosDiv = document.getElementById("temposFeitos");
+            const novoTempoFeitoDiv = document.createElement("div");
+
+            novoTempoFeitoDiv.innerHTML = `
+                    <label for="tempoFeito" class="tempoFeitoLabel">Tempo Feito (HH:MM):</label>
+                    <input type="text" class="tempoFeito" placeholder="00:00" value="00:00" onchange="atualizarMetaSemanal()">
+                    <button onclick="removerTempoFeito(this)">Remover</button>
+                `;
+
+            temposFeitosDiv.appendChild(novoTempoFeitoDiv);
+        }
+
+        function removerTempoFeito(botaoRemover) {
+            const divTempoFeito = botaoRemover.parentElement;
+            divTempoFeito.remove();
+            atualizarMetaSemanal();
+        }
+
+        function calcularTempoFeito() {
+            const tempoFeitosInputs = document.querySelectorAll(".tempoFeito");
+            let tempoTotalEmMinutos = 0;
+
+            for (const input of tempoFeitosInputs) {
+                const tempoFeito = input.value;
+                const [horas, minutos] = tempoFeito.split(":").map(Number);
+                tempoTotalEmMinutos += horas * 60 + minutos;
+            }
+
+            const horasTotal = Math.floor(tempoTotalEmMinutos / 60);
+            const minutosTotal = tempoTotalEmMinutos % 60;
+
+            tempoFeitoSemanalEmMinutos = tempoTotalEmMinutos;
+
+            document.getElementById("tempoFeitoResultado").textContent = `${horasTotal} horas e ${minutosTotal} minutos`;
+
+            atualizarMetaSemanal();
+        }
+
+        function atualizarMetaSemanal() {
+            const diasTrabalhadosDigitados = document.getElementById("diasTrabalhados").value;
+
+            const tempoFeitosInputs = document.querySelectorAll(".tempoFeito");
+            let tempoTotalEmMinutos = 0;
+
+            for (const input of tempoFeitosInputs) {
+                const tempoFeito = input.value;
+                const [horas, minutos] = tempoFeito.split(":").map(Number);
+                tempoTotalEmMinutos += horas * 60 + minutos;
+            }
+
+            const horasTotal = Math.floor(tempoTotalEmMinutos / 60);
+            const minutosTotal = tempoTotalEmMinutos % 60;
+
+            tempoFeitoSemanalEmMinutos = tempoTotalEmMinutos;
+
+            document.getElementById("tempoFeitoResultado").textContent = `${horasTotal} horas e ${minutosTotal} minutos`;
+
+            metaSemanalAtingida = tempoFeitoSemanalEmMinutos >= 7 * 60;
+            document.getElementById("metaSemanal").textContent = metaSemanalAtingida ? "Sim" : "Não";
+
+            const tempoRestanteMinutos = Math.max(0, 7 * 60 - tempoTotalEmMinutos);
+            const tempoRestanteHoras = Math.floor(tempoRestanteMinutos / 60);
+            const tempoRestanteMinutosRestantes = tempoRestanteMinutos % 60;
+
+            document.getElementById("tempoRestanteMetaDiaria").textContent = `${tempoRestanteHoras} horas e ${tempoRestanteMinutosRestantes} minutos`;
+
+            metaSemanalDiasAtingida = diasTrabalhadosDigitados >= 3;
+            document.getElementById("metaSemanalDias").textContent = metaSemanalDiasAtingida ? "Sim" : "Não";
+        }
+
+        function salvarDados() {
+            const nome = document.getElementById("nome").value;
+            const id = document.getElementById("id").value;
+            const diasTrabalhadosDigitados = document.getElementById("diasTrabalhados").value;
+
+            const tempoFeitosInputs = document.querySelectorAll(".tempoFeito");
+            let tempoTotalEmMinutos = 0;
+
+            for (const input of tempoFeitosInputs) {
+                const tempoFeito = input.value;
+                const [horas, minutos] = tempoFeito.split(":").map(Number);
+                tempoTotalEmMinutos += horas * 60 + minutos;
+            }
+
+            const horasTotal = Math.floor(tempoTotalEmMinutos / 60);
+            const minutosTotal = tempoTotalEmMinutos % 60;
+
+            const dataHora = new Date();
+            const justificouAusencia = document.getElementById("justificouAusencia").value;
+            const motivoAusencia = document.getElementById("motivo").value;
+
+            document.getElementById("nomeResultado").textContent = nome;
+            document.getElementById("idResultado").textContent = id;
+            document.getElementById("tempoFeitoResultado").textContent = `${horasTotal} horas e ${minutosTotal} minutos`;
+            document.getElementById("diasTrabalhadosResultado").textContent = `Dia Digitado: ${diasTrabalhadosDigitados}`;
+
+            document.getElementById("justificouAusenciaResultado").textContent = justificouAusencia;
+            document.getElementById("motivoAusenciaResultado").textContent = motivoAusencia;
+
+            const tempoRestanteMinutos = Math.max(0, 7 * 60 - tempoTotalEmMinutos);
+            const tempoRestanteHoras = Math.floor(tempoRestanteMinutos / 60);
+            const tempoRestanteMinutosRestantes = tempoRestanteMinutos % 60;
+
+            const arquivoNome = `${nome}_${id}_dados.txt`;
+
+            const fileContent = `
+            Nome: ${nome}
+            ID: ${id}
+            Soma de Tempo Feito: ${horasTotal} horas e ${minutosTotal} minutos
+            Data e Hora: ${dataHora.toLocaleString()}
+            Meta Semanal Atingida: ${metaSemanalAtingida ? "Sim" : "Não"}
+            Dia Digitado: ${diasTrabalhadosDigitados}
+            Justificou Ausência: ${justificouAusencia}
+            Motivo da Ausência: ${motivoAusencia}
+            Tempo Restante para Meta Semanal (7 horas): ${tempoRestanteHoras} horas e ${tempoRestanteMinutosRestantes} minutos
+            Meta de 3 Dias na Semana Atingida: ${metaSemanalDiasAtingida ? "Sim" : "Não"}
+        `;
+
+            const blob = new Blob([fileContent], { type: "text/plain" });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = arquivoNome;
+            a.click();
+        }
+
+        function toggleDarkMode() {
+            const body = document.body;
+            if (body.classList.contains("dark-mode")) {
+                body.classList.remove("dark-mode");
+                document.getElementById("darkModeButton").textContent = "Modo Escuro";
+            } else {
+                body.classList.add("dark-mode");
+                document.getElementById("darkModeButton").textContent = "Modo Claro";
+            }
+        }
+
+        function mostrarMotivo() {
+            const justificouAusencia = document.getElementById("justificouAusencia").value;
+            if (justificouAusencia === "Sim") {
+                document.getElementById("motivoAusencia").style.display = "block";
+            } else {
+                document.getElementById("motivoAusencia").style.display = "none";
+            }
+        }
+    </script>
+    <center>
+        <img src="https://cdn.discordapp.com/attachments/1121604849159647273/1159490770890403870/hrd-removebg-preview.png?ex=653136ee&is=651ec1ee&hm=e7c110624646f6ef6d9a2825a776b9b84d176745357000158907c7b30814a339&" alt="">
+    </center>
+</body>
+</html>
